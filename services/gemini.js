@@ -1,28 +1,32 @@
-async function callGeminiAPI({ prompt, context = [], apiKey } = {}) {
-  // If no API key provided, return a simple mocked response.
+async function callGeminiAPI({ prompt, context = [] } = {}) {
+  // Use environment variable for Gemini key; do not hardcode credentials.
+  const apiKey = process.env.GEMINI_API_KEY || '';
+
+  // If no API key provided, return a mocked response suitable for Expo Go development.
   if (!apiKey) {
     const combined = [prompt, ...context.map(c => c.content || '')].join('\n');
-    return {
-      text: `Thoughtful reply based on: ${combined.slice(0, 200)}${combined.length>200? '...': ''}`
-    };
+    return { text: `Mocked response: ${combined.slice(0, 200)}${combined.length>200? '...': ''}` };
   }
 
-  // Example fetch to a hypothetical Gemini endpoint. Users can set GEMINI_API_KEY in env.
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const contents = context.map(c => ({
+      role: c.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: c.content || '' }]
+    }));
+
+    contents.push({ role: 'user', parts: [{ text: prompt }] });
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'system', content: prompt }, ...context.map(c=>({role:c.role, content:c.content}))]
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents })
     });
+
     const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || JSON.stringify(data);
-    return { text };
+    if (data?.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+      return { text: data.candidates[0].content.parts[0].text };
+    }
+    return { text: 'Error: Could not parse response from Gemini API.' };
   } catch (e) {
     return { text: `Unable to reach Gemini API: ${e.message}` };
   }
