@@ -9,7 +9,7 @@ export default {
   clean(text = '') {
     let out = text;
     removals.forEach(r => { out = out.replace(r, ''); });
-    // Collapse multiple spaces and trim
+    // Remove multiple spaces and leading/trailing whitespace
     out = out.replace(/\s{2,}/g, ' ').trim();
     return out;
   }
